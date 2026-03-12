@@ -6,11 +6,12 @@ const port = process.env.PORT || 4000;
 const app = express();
 const store = await createDataStore();
 
-app.use(
-  cors({
-    origin:["*"],
-  })
-);
+app.use(cors({
+  origin: "https://travelverse-startup101-84u2.vercel.app",
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization","x-user-role"]
+}));
+
 // Landmark creation currently sends image/audio uploads as base64 strings.
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));

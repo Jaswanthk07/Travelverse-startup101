@@ -8,7 +8,7 @@ const store = await createDataStore();
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:5173"],
+    origin: process.env.CORS_ORIGIN?.split(",") ?? ["*"],
   })
 );
 // Landmark creation currently sends image/audio uploads as base64 strings.

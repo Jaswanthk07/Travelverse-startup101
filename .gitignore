@@ -6,6 +6,6 @@ dist/
 build/
 .env
 .env.*
-!.env.example
+frontend/.env.example
 .vercel/
 "@ | Set-Content .gitignore

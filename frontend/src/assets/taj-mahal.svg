@@ -1,0 +1,18 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" rx="40" fill="#0B1320"/>
+  <rect y="420" width="800" height="180" fill="#083344"/>
+  <rect y="468" width="800" height="132" fill="#0F766E"/>
+  <rect x="171" y="230" width="458" height="218" rx="14" fill="#E2E8F0"/>
+  <path d="M400 116C448.601 116 488 155.399 488 204V230H312V204C312 155.399 351.399 116 400 116Z" fill="#F8FAFC"/>
+  <path d="M400 80L427 126H373L400 80Z" fill="#F8FAFC"/>
+  <rect x="220" y="184" width="68" height="264" rx="10" fill="#F8FAFC"/>
+  <rect x="512" y="184" width="68" height="264" rx="10" fill="#F8FAFC"/>
+  <rect x="86" y="162" width="45" height="286" rx="10" fill="#CBD5E1"/>
+  <rect x="669" y="162" width="45" height="286" rx="10" fill="#CBD5E1"/>
+  <path d="M108 130L131 162H85L108 130Z" fill="#E2E8F0"/>
+  <path d="M692 130L715 162H669L692 130Z" fill="#E2E8F0"/>
+  <rect x="347" y="291" width="106" height="157" rx="10" fill="#CBD5E1"/>
+  <path d="M400 260C429.271 260 453 283.729 453 313V329H347V313C347 283.729 370.729 260 400 260Z" fill="#F8FAFC"/>
+  <path d="M120 468H680L649 530H151L120 468Z" fill="#67E8F9" fill-opacity="0.35"/>
+  <circle cx="147" cy="114" r="56" fill="#F59E0B" fill-opacity="0.48"/>
+</svg>

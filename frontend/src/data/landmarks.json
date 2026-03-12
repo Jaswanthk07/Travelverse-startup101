@@ -1,0 +1,38 @@
+[
+  {
+    "id": "taj-mahal",
+    "name": "Taj Mahal",
+    "location": "Agra",
+    "image": "../assets/taj-mahal.svg",
+    "description": [
+      "The Taj Mahal was commissioned in 1632 by Mughal emperor Shah Jahan as a memorial to his wife Mumtaz Mahal.",
+      "Its marble surfaces, gardens, and balanced geometry make it one of the most recognizable monuments in the world.",
+      "The site works well for TravelVerse because architecture, emotion, and royal history come together in a single visitor story."
+    ],
+    "audioGuide": "narration://taj-mahal"
+  },
+  {
+    "id": "qutub-minar",
+    "name": "Qutub Minar",
+    "location": "Delhi",
+    "image": "../assets/qutub-minar.svg",
+    "description": [
+      "Qutub Minar is a monumental tower from the Delhi Sultanate, built across multiple reigns from the late 12th century onward.",
+      "Its carved sandstone bands and inscriptions make it a strong visual example of layered political and architectural history.",
+      "TravelVerse can use this site to explain dynasties, design evolution, and the wider Qutub complex in one flow."
+    ],
+    "audioGuide": "narration://qutub-minar"
+  },
+  {
+    "id": "charminar",
+    "name": "Charminar",
+    "location": "Hyderabad",
+    "image": "../assets/charminar.svg",
+    "description": [
+      "Charminar was built in 1591 and remains the symbolic heart of Hyderabad.",
+      "Its four minarets and surrounding market streets connect architecture with the living rhythm of the old city.",
+      "This makes it a strong TravelVerse story because heritage, faith, trade, and culture all intersect in one landmark."
+    ],
+    "audioGuide": "narration://charminar"
+  }
+]

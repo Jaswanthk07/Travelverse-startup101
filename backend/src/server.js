@@ -7,7 +7,7 @@ const app = express();
 const store = await createDataStore();
 
 app.use(cors({
-  origin: "https://travelverse-startup101-84u2.vercel.app",
+  origin: "https://travelverse-startup101-z5jn.vercel.app/",
   methods: ["GET","POST","PUT","DELETE","OPTIONS"],
   allowedHeaders: ["Content-Type","Authorization","x-user-role"]
 }));

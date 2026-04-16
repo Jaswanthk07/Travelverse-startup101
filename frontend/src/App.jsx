@@ -11,6 +11,9 @@ import ContentDashboard from "./pages/ContentDashboard";
 import AddLandmark from "./pages/AddLandmark";
 import AddEvent from "./pages/AddEvent";
 import LandmarkDetails from "./pages/LandmarkDetails";
+import PricingPage from "./pages/PricingPage";
+import ProfilePage from "./pages/ProfilePage";
+import CreatorDashboard from "./pages/CreatorDashboard";
 
 function App() {
   return (
@@ -18,8 +21,17 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -33,6 +45,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["traveler"]}>
               <TravelerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/creator"
+          element={
+            <ProtectedRoute allowedRoles={["content-manager", "admin"]}>
+              <CreatorDashboard />
             </ProtectedRoute>
           }
         />

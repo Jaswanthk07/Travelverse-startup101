@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   createMonumentEvent,
   deleteMonumentEvent,
@@ -11,16 +11,25 @@ const EventsContext = createContext(null);
 export function EventsProvider({ children }) {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const hasLoadedEventsRef = useRef(false);
 
-  const loadEvents = async () => {
-    setIsLoading(true);
+  const loadEvents = async ({ silent = false } = {}) => {
+    const shouldShowLoader = !silent || !hasLoadedEventsRef.current;
+
+    if (shouldShowLoader) {
+      setIsLoading(true);
+    }
 
     try {
       const response = await fetchEvents();
       setEvents(response);
+      hasLoadedEventsRef.current = true;
     } catch (error) {
       console.warn("Failed to load events:", error.message);
-      setEvents([]);
+
+      if (!hasLoadedEventsRef.current) {
+        setEvents([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -43,13 +52,24 @@ export function EventsProvider({ children }) {
   };
 
   const getEventsForLandmark = async (landmarkId) => {
-    const existing = events.filter((event) => event.landmarkId === landmarkId);
+    try {
+      const latest = await fetchEventsByLandmark(landmarkId);
 
-    if (existing.length > 0) {
-      return existing;
+      setEvents((current) => {
+        const unrelated = current.filter((event) => event.landmarkId !== landmarkId);
+        return [...unrelated, ...latest];
+      });
+
+      return latest;
+    } catch (error) {
+      const existing = events.filter((event) => event.landmarkId === landmarkId);
+
+      if (existing.length > 0) {
+        return existing;
+      }
+
+      throw error;
     }
-
-    return fetchEventsByLandmark(landmarkId);
   };
 
   return (

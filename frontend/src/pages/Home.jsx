@@ -3,6 +3,7 @@ import ExpansionCities from '../components/ExpansionCities'
 import HeroSection from '../components/HeroSection'
 import LandmarkCard from '../components/LandmarkCard'
 import StudentPricing from '../components/StudentPricing'
+import { useAuth } from '../context/AuthContext'
 import { useLandmarks } from '../context/LandmarksContext'
 
 const features = [
@@ -21,10 +22,16 @@ const features = [
     description:
       'Use short guides, Telugu and Hindi audio modes, shareable badges, and saved content packs.',
   },
+  {
+    title: 'Creator Control Room',
+    description:
+      'Content creators add monuments, launch events, and watch live demand, scans, and check-ins in one flow.',
+  },
 ]
 
 function Home() {
   const { landmarks } = useLandmarks()
+  const { user } = useAuth()
 
   return (
     <main>
@@ -121,9 +128,98 @@ function Home() {
         </div>
       </section>
 
+      <section className="pb-20">
+        <div className="section-shell grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="glass-panel rounded-[1.75rem] p-8 shadow-soft">
+            <p className="text-sm uppercase tracking-[0.3em] text-amber-100/80">
+              For Content Creators
+            </p>
+            <h2 className="mt-3 font-display text-4xl font-bold text-white">
+              Publish monuments, push events, and monitor live traction
+            </h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              {[
+                ['Add monuments', 'New landmarks are created from the content dashboard and appear on the live traveler side.'],
+                ['Launch events', 'Concerts, heritage festivals, and special entries can be added for each monument.'],
+                ['Live tracking', 'Scans, bookings, sessions, and check-ins feed the analytics view in real time.'],
+                ['Faster updates', 'Creators are not limited to the original seeded monuments anymore.'],
+              ].map(([title, copy]) => (
+                <div key={title} className="rounded-lg border border-white/10 bg-white/5 p-5">
+                  <h3 className="font-display text-2xl font-semibold text-white">{title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">{copy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-panel rounded-[1.75rem] p-8 shadow-soft">
+            <p className="text-sm uppercase tracking-[0.3em] text-sky-100/80">
+              Traveler Access
+            </p>
+            <h2 className="mt-3 font-display text-4xl font-bold text-white">
+              Pricing and passes are traveler-only
+            </h2>
+            <p className="mt-5 text-base leading-8 text-slate-300">
+              Travelers can log in, activate a pass, and use fake RuPay demo payments. Premium
+              travelers automatically get 10% off concert events and see their pass status in the
+              dashboard.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              {!user ? (
+                <Link
+                  to="/login"
+                  className="rounded-lg bg-white px-5 py-3 text-sm font-bold text-slate-950"
+                >
+                  Login First
+                </Link>
+              ) : user.role === 'traveler' ? (
+                <Link
+                  to="/dashboard/traveler"
+                  className="rounded-lg bg-white px-5 py-3 text-sm font-bold text-slate-950"
+                >
+                  Open Traveler Dashboard
+                </Link>
+              ) : (
+                <Link
+                  to="/creator"
+                  className="rounded-lg bg-white px-5 py-3 text-sm font-bold text-slate-950"
+                >
+                  Open Creator Dashboard
+                </Link>
+              )}
+              <Link
+                to="/pricing"
+                className="rounded-lg border border-sky-300/30 bg-sky-300/10 px-5 py-3 text-sm font-semibold text-sky-100"
+              >
+                View Pricing
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <ExpansionCities />
 
       <StudentPricing />
+
+      {user && user.role === 'traveler' && !user.isPremium ? (
+        <section className="pb-16">
+          <div className="section-shell">
+            <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 p-6 text-center">
+              <p className="text-lg font-bold text-white">Unlock Premium</p>
+              <p className="mt-2 text-sm leading-7 text-slate-300">
+                Get 10% concert discounts, audio guides, and premium booking access.
+              </p>
+              <Link
+                to="/pricing"
+                className="mt-5 inline-flex rounded-lg bg-teal-500 px-5 py-3 text-sm font-bold text-white"
+              >
+                View Premium Plans
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="pb-24">
         <div className="section-shell">
@@ -140,11 +236,33 @@ function Home() {
               Launch the dashboard, simulate the scan flow, and use this MVP to
               collect feedback from your first 10 test users.
             </p>
+            {!user ? (
+              <Link
+                to="/signup"
+                className="mt-8 inline-flex rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5"
+              >
+                Explore the MVP
+              </Link>
+            ) : user.role === 'traveler' ? (
+              <Link
+                to="/dashboard/traveler"
+                className="mt-8 inline-flex rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5"
+              >
+                Open Traveler Dashboard
+              </Link>
+            ) : (
+              <Link
+                to="/creator"
+                className="mt-8 inline-flex rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5"
+              >
+                Open Creator Dashboard
+              </Link>
+            )}
             <Link
-              to="/signup"
-              className="mt-8 inline-flex rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5"
+              to="/pricing"
+              className="mt-8 ml-3 inline-flex rounded-full border border-white/15 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
             >
-              Explore the MVP
+              Pricing
             </Link>
           </div>
         </div>

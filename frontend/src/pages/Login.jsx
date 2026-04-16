@@ -10,7 +10,8 @@ function Login() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const redirectTo = location.state?.from;
+  const searchParams = new URLSearchParams(location.search);
+  const redirectTo = location.state?.from ?? searchParams.get("redirect");
 
   const handleSubmit = async (event) => {
     event.preventDefault();

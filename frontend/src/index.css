@@ -35,3 +35,218 @@ body {
 .text-gradient {
   @apply bg-gradient-to-r from-sky-300 via-cyan-200 to-amber-200 bg-clip-text text-transparent;
 }
+
+.event-loader {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at top left, rgba(125, 211, 252, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.12), transparent 28%),
+    rgba(15, 23, 42, 0.82);
+}
+
+.event-loader__screen {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.1rem;
+  padding: 1.5rem;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.86), rgba(15, 23, 42, 0.92)),
+    rgba(15, 23, 42, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 24px 60px rgba(2, 6, 23, 0.34);
+}
+
+.event-loader__screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  opacity: 0.32;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.event-loader__noise {
+  position: absolute;
+  inset: -30%;
+  opacity: 0.18;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0.6px, transparent 0.8px),
+    radial-gradient(circle, rgba(125, 211, 252, 0.8) 0.8px, transparent 1px),
+    radial-gradient(circle, rgba(253, 224, 71, 0.8) 0.7px, transparent 0.9px);
+  background-position: 0 0, 18px 12px, 34px 22px;
+  background-size: 24px 24px, 28px 28px, 32px 32px;
+  filter: blur(0.2px);
+  animation: event-loader-static 0.3s steps(2) infinite;
+  pointer-events: none;
+}
+
+.event-loader__scanline {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 28%;
+  top: -30%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(125, 211, 252, 0.05) 18%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(251, 191, 36, 0.08) 82%,
+    transparent 100%
+  );
+  filter: blur(10px);
+  opacity: 0.8;
+  animation: event-loader-scan 2.6s linear infinite;
+  pointer-events: none;
+}
+
+.event-loader__badge {
+  align-self: flex-start;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  background: rgba(14, 165, 233, 0.1);
+  color: rgba(224, 242, 254, 0.92);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.event-loader__progress {
+  position: relative;
+  overflow: hidden;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.event-loader__progress span {
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0), rgba(56, 189, 248, 0.92), rgba(253, 224, 71, 0.92), rgba(56, 189, 248, 0));
+  animation: event-loader-progress 1.4s ease-in-out infinite;
+}
+
+.event-loader__card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.event-loader__card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 35%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.04) 65%,
+    transparent 100%
+  );
+  animation: event-loader-shimmer 1.8s ease-in-out infinite;
+}
+
+.event-loader__line {
+  height: 0.78rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.2), rgba(226, 232, 240, 0.5), rgba(148, 163, 184, 0.24));
+}
+
+.event-loader__line + .event-loader__line {
+  margin-top: 0.9rem;
+}
+
+.event-loader__line--short {
+  width: 28%;
+}
+
+.event-loader__line--title {
+  width: 72%;
+  height: 1.1rem;
+}
+
+.event-loader__line--medium {
+  width: 56%;
+}
+
+.event-loader__line--long {
+  width: 88%;
+}
+
+.event-loader__line--price {
+  width: 34%;
+  margin-top: 1.35rem !important;
+}
+
+@keyframes event-loader-static {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(-2%, 2%) scale(1.02);
+  }
+
+  100% {
+    transform: translate(2%, -1%) scale(1.01);
+  }
+}
+
+@keyframes event-loader-scan {
+  0% {
+    top: -34%;
+  }
+
+  100% {
+    top: 106%;
+  }
+}
+
+@keyframes event-loader-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes event-loader-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(180%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-loader__noise,
+  .event-loader__scanline,
+  .event-loader__progress span,
+  .event-loader__card::after {
+    animation: none;
+  }
+}

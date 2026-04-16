@@ -1,10 +1,13 @@
 import Fuse from "fuse.js";
 import { useEffect, useMemo, useState } from "react";
+import BookingCheckout from "../components/BookingCheckout";
+import EventSignalLoader from "../components/EventSignalLoader";
 import FriendActivityFeed from "../components/FriendActivityFeed";
 import LandmarkCard from "../components/LandmarkCard";
 import ScannerModal from "../components/ScannerModal";
 import SearchBar from "../components/SearchBar";
 import { useAuth } from "../context/AuthContext";
+import { useEvents } from "../context/EventsContext";
 import { useLandmarks } from "../context/LandmarksContext";
 import {
   fetchBookingHistory,
@@ -27,6 +30,7 @@ const emptyStats = {
 
 function TravelerDashboard() {
   const { user } = useAuth();
+  const { events, isLoading: areEventsLoading, loadEvents } = useEvents();
   const { landmarks, isLoading } = useLandmarks();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({ city: "", type: "", crowd: "" });
@@ -35,8 +39,13 @@ function TravelerDashboard() {
   const [scanTarget, setScanTarget] = useState(null);
   const [bookingHistory, setBookingHistory] = useState([]);
   const [stats, setStats] = useState(emptyStats);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedLandmark, setSelectedLandmark] = useState(null);
 
   useEffect(() => {
+    loadEvents({ silent: true }).catch((error) =>
+      console.warn("Events refresh unavailable:", error.message)
+    );
     getStatsSummary().then((response) => setStats({ ...emptyStats, ...response }));
     fetchBookingHistory()
       .then(setBookingHistory)
@@ -46,7 +55,15 @@ function TravelerDashboard() {
       userEmail: user?.email ?? "",
       metadata: { surface: "traveler_dashboard" },
     });
-  }, [user]);
+  }, [loadEvents, user]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      loadEvents({ silent: true }).catch(() => {});
+    }, 30 * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadEvents]);
 
   useEffect(() => {
     const hasServerFilter = query.trim() || filters.city || filters.type || filters.crowd;
@@ -127,6 +144,35 @@ function TravelerDashboard() {
     setStats((current) => ({ ...current, scans: current.scans + 1 }));
   };
 
+  const liveEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return [...events]
+      .filter((event) => {
+        const eventDate = new Date(`${event.date}T00:00:00`);
+        return !Number.isNaN(eventDate.getTime()) && eventDate >= today;
+      })
+      .sort((first, second) => new Date(first.date) - new Date(second.date))
+      .slice(0, 6)
+      .map((event) => {
+        const eventDate = new Date(`${event.date}T00:00:00`);
+        const isToday = eventDate.toDateString() === today.toDateString();
+        const landmark = landmarks.find((item) => item.id === event.landmarkId);
+
+        return {
+          ...event,
+          landmarkName: landmark?.name ?? event.landmarkId,
+          statusLabel: isToday ? "Ongoing Today" : "Upcoming",
+          formattedDate: eventDate.toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }),
+        };
+      });
+  }, [events, landmarks]);
+
   return (
     <main className="section-shell py-16">
       <section className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-sky-400/10 via-white/5 to-amber-300/10 p-8 shadow-glow sm:p-10">
@@ -143,6 +189,11 @@ function TravelerDashboard() {
         <p className="mt-4 text-sm text-sky-100/80">
           Logged in as {user?.name} ({user?.email})
         </p>
+        {user?.subscription?.status === "active" ? (
+          <div className="mt-5 inline-flex rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">
+            {user.subscription.planName} active • {user.subscription.passCode}
+          </div>
+        ) : null}
 
         <div className="mt-8">
           <SearchBar
@@ -204,6 +255,11 @@ function TravelerDashboard() {
                       <p className="mt-1 text-sm text-slate-300">
                         {booking.landmarkName} · {booking.visitDate} · ₹{booking.totalAmount}
                       </p>
+                      {booking.ticket?.ticketCode ? (
+                        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-emerald-100/80">
+                          Ticket {booking.ticket.ticketCode} · {booking.paymentMethod ?? "stripe"}
+                        </p>
+                      ) : null}
                     </div>
                     <span className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-emerald-100">
                       {booking.status}
@@ -218,6 +274,69 @@ function TravelerDashboard() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="pb-12">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm uppercase tracking-[0.3em] text-violet-100/80">
+              Live Events
+            </p>
+            <h2 className="mt-3 font-display text-3xl font-bold text-white">
+              Ongoing and upcoming bookings
+            </h2>
+          </div>
+          <p className="hidden text-sm text-slate-400 sm:block">
+            Fresh from content creator updates
+          </p>
+        </div>
+
+        {areEventsLoading && liveEvents.length === 0 ? (
+          <EventSignalLoader />
+        ) : liveEvents.length ? (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {liveEvents.map((event) => (
+              <article key={event.id} className="glass-panel rounded-lg p-6 shadow-soft">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-violet-100/70">
+                      {event.category ?? "event"}
+                    </p>
+                    <h3 className="mt-2 font-display text-2xl font-semibold text-white">
+                      {event.eventName}
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-300">
+                      {event.landmarkName} · {event.formattedDate} · {event.time}
+                    </p>
+                  </div>
+                  <span className="rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-amber-100">
+                    {event.statusLabel}
+                  </span>
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-300">{event.description}</p>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-semibold text-emerald-100">From ₹{event.ticketPrice}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEvent(event);
+                      setSelectedLandmark(
+                        landmarks.find((item) => item.id === event.landmarkId) ?? null
+                      );
+                    }}
+                    className="rounded-lg bg-gradient-to-r from-amber-300 to-sky-300 px-5 py-3 text-sm font-bold text-slate-950"
+                  >
+                    Book Event
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="glass-panel rounded-lg p-8 text-slate-300">
+            No ongoing or upcoming events yet. New content creator events will appear here.
+          </div>
+        )}
       </section>
 
       <section className="py-12">
@@ -260,6 +379,18 @@ function TravelerDashboard() {
         onClose={() => setIsScannerOpen(false)}
         landmark={scanTarget}
       />
+      {selectedEvent && selectedLandmark ? (
+        <div className="pb-12">
+          <BookingCheckout
+            landmark={selectedLandmark}
+            event={selectedEvent}
+            onCancel={() => {
+              setSelectedEvent(null);
+              setSelectedLandmark(null);
+            }}
+          />
+        </div>
+      ) : null}
     </main>
   );
 }

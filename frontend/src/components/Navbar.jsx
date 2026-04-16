@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import PremiumBadge from "./PremiumBadge";
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -13,6 +14,17 @@ function Navbar() {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handlePricingClick = () => {
+    if (!user) {
+      navigate("/login?redirect=/pricing");
+      return;
+    }
+    if (user.role === "content-manager") {
+      return;
+    }
+    navigate("/pricing");
   };
 
   return (
@@ -52,6 +64,13 @@ function Navbar() {
           ))}
           {!isAuthenticated ? (
             <>
+              <button
+                type="button"
+                onClick={handlePricingClick}
+                className="whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                Pricing
+              </button>
               <NavLink
                 to="/login"
                 className={({ isActive }) =>
@@ -92,6 +111,27 @@ function Navbar() {
                     : "Traveler"} • {user?.email}
               </p>
             </div>
+            {user?.role !== "content-manager" ? (
+              <button
+                type="button"
+                onClick={handlePricingClick}
+                className="hidden sm:inline-flex"
+              >
+                {user?.isPremium ? (
+                  <PremiumBadge plan={user.premiumPlan} size="sm" />
+                ) : (
+                  <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300">
+                    Pricing
+                  </span>
+                )}
+              </button>
+            ) : null}
+            <Link
+              to="/profile"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-600 text-sm font-bold text-white"
+            >
+              {user?.name?.[0]?.toUpperCase() ?? "U"}
+            </Link>
             <button
               type="button"
               onClick={handleLogout}

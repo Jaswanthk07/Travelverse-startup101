@@ -6,6 +6,7 @@ import { useLandmarks } from "../context/LandmarksContext";
 const initialState = {
   landmarkId: "",
   eventName: "",
+  category: "festival",
   date: "",
   time: "",
   ticketPrice: "",
@@ -33,6 +34,7 @@ function AddEvent() {
       await addEvent({
         landmarkId: formData.landmarkId,
         eventName: formData.eventName.trim(),
+        category: formData.category,
         date: formData.date,
         time: formData.time.trim(),
         ticketPrice: formData.ticketPrice,
@@ -95,6 +97,22 @@ function AddEvent() {
                 onChange={(event) => updateField("eventName", event.target.value)}
                 className="w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-white outline-none"
               />
+            </label>
+
+            <label>
+              <span className="mb-2 block text-sm font-medium text-slate-200">
+                Event Category
+              </span>
+              <select
+                value={formData.category}
+                onChange={(event) => updateField("category", event.target.value)}
+                className="w-full rounded-2xl border border-white/15 bg-slate-900 px-4 py-3 text-white outline-none"
+              >
+                <option value="festival">Festival</option>
+                <option value="concert">Concert</option>
+                <option value="tour">Tour</option>
+                <option value="workshop">Workshop</option>
+              </select>
             </label>
 
             <div className="grid gap-5 sm:grid-cols-3">

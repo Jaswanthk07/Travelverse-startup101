@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
+import EventSignalLoader from "../components/EventSignalLoader";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { useLandmarks } from "../context/LandmarksContext";
-import { getStatsSummary } from "../lib/api";
+import {
+  approveCreatorBooking,
+  fetchCreatorPendingBookings,
+  getStatsSummary,
+} from "../lib/api";
 
-const tabs = ["landmarks", "events", "analytics"];
+const tabs = ["landmarks", "events", "bookings", "analytics"];
 
 function StatPanel({ label, value }) {
   return (
@@ -23,10 +28,33 @@ function ContentDashboard() {
   const { landmarks, isLoading, removeLandmark } = useLandmarks();
   const [activeTab, setActiveTab] = useState("landmarks");
   const [stats, setStats] = useState({});
+  const [pendingBookings, setPendingBookings] = useState([]);
+  const [isApprovingId, setIsApprovingId] = useState("");
 
   useEffect(() => {
     getStatsSummary().then(setStats);
+    fetchCreatorPendingBookings()
+      .then(setPendingBookings)
+      .catch((error) => console.warn("Pending bookings unavailable:", error.message));
   }, []);
+
+  const handleApproveBooking = async (bookingId) => {
+    setIsApprovingId(bookingId);
+
+    try {
+      const response = await approveCreatorBooking(bookingId);
+      setPendingBookings((current) => current.filter((booking) => booking.id !== bookingId));
+      setStats((current) => ({
+        ...current,
+        totalBookings: (current.totalBookings ?? 0) + 1,
+      }));
+      console.log("Approved booking", response.booking.bookingCode);
+    } catch (error) {
+      console.warn("Approve booking failed:", error.message);
+    } finally {
+      setIsApprovingId("");
+    }
+  };
 
   return (
     <main className="section-shell py-16">
@@ -158,8 +186,11 @@ function ContentDashboard() {
             <p className="text-sm text-slate-400">{events.length} total</p>
           </div>
 
-          {isEventsLoading ? (
-            <div className="glass-panel rounded-lg p-8 text-slate-300">Loading events...</div>
+          {isEventsLoading && events.length === 0 ? (
+            <EventSignalLoader
+              title="Calibrating monument event listings"
+              caption="Checking the backend feed and preparing the latest bookable sessions for your control room."
+            />
           ) : (
             <div className="overflow-hidden rounded-lg border border-white/10">
               {events.map((event) => {
@@ -177,6 +208,9 @@ function ContentDashboard() {
                       <p className="mt-2 text-sm text-slate-300">
                         {landmark?.name ?? event.landmarkId} · {event.date} · {event.time} · ₹
                         {event.ticketPrice}
+                      </p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-100/80">
+                        {event.category ?? "festival"} · visible on traveler landmark pages
                       </p>
                     </div>
                     <button
@@ -231,6 +265,67 @@ function ContentDashboard() {
               </div>
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {activeTab === "bookings" ? (
+        <section className="pb-12">
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.3em] text-emerald-100/80">
+                Pending Bookings
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-white">
+                Traveler payment approvals
+              </h2>
+            </div>
+            <p className="text-sm text-slate-400">{pendingBookings.length} waiting</p>
+          </div>
+
+          {pendingBookings.length ? (
+            <div className="space-y-4">
+              {pendingBookings.map((booking) => (
+                <article
+                  key={booking.id}
+                  className="rounded-lg border border-white/10 bg-white/5 p-5"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="font-display text-2xl font-semibold text-white">
+                        {booking.eventName}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-300">
+                        {booking.landmarkName} · {booking.visitDate} · {booking.slotTime}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-300">
+                        Traveler: {booking.userName} ({booking.userEmail})
+                      </p>
+                      <p className="mt-2 text-sm text-emerald-100">
+                        Paid via {booking.paymentMethod ?? "demo payment"} · ₹{booking.totalAmount}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-start gap-3 lg:items-end">
+                      <span className="rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-100">
+                        {booking.status}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isApprovingId === booking.id}
+                        onClick={() => handleApproveBooking(booking.id)}
+                        className="rounded-lg bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-60"
+                      >
+                        {isApprovingId === booking.id ? "Approving..." : "Approve Booking"}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-panel rounded-lg p-8 text-slate-300">
+              No traveler bookings are waiting for approval right now.
+            </div>
+          )}
         </section>
       ) : null}
     </main>

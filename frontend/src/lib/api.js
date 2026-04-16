@@ -43,6 +43,7 @@ export const loginUser = (payload) =>
   });
 
 export const fetchCurrentUser = () => request("/auth/me");
+export const fetchUserProfile = () => request("/users/me");
 
 export const fetchLandmarks = () => request("/landmarks");
 
@@ -73,6 +74,17 @@ export const createCheckIn = (payload) =>
     body: JSON.stringify(payload),
   });
 export const fetchPlans = () => request("/plans");
+export const fetchSubscription = () => request("/subscription/me");
+export const purchaseSubscription = (payload) =>
+  request("/subscriptions/purchase", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+export const upgradePremium = (payload) =>
+  request("/users/upgrade", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 
 export const createLandmark = (payload) =>
   request("/landmarks", {
@@ -98,6 +110,12 @@ export const createBookingCheckout = (payload) =>
     body: JSON.stringify(payload),
   });
 
+export const simulateBookingPayment = (payload) =>
+  request("/bookings/simulate-payment", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
 export const fetchBookingHistory = () => request("/bookings/history");
 
 export const updateLandmark = (id, payload) =>
@@ -109,6 +127,14 @@ export const updateLandmark = (id, payload) =>
 export const deleteLandmark = (id) =>
   request(`/landmarks/${id}`, {
     method: "DELETE",
+  });
+
+export const fetchCreatorMonuments = () => request("/creator/monuments");
+export const fetchCreatorStats = () => request("/creator/stats");
+export const fetchCreatorPendingBookings = () => request("/creator/bookings/pending");
+export const approveCreatorBooking = (id) =>
+  request(`/creator/bookings/${id}/approve`, {
+    method: "POST",
   });
 
 export const deleteMonumentEvent = (id) =>

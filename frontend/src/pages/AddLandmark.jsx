@@ -106,6 +106,10 @@ function AddLandmark() {
           <h1 className="mt-3 font-display text-4xl font-bold text-white">
             {isEditing ? "Update landmark content" : "Create landmark content"}
           </h1>
+          <p className="mt-4 text-sm leading-7 text-slate-300">
+            Every new monument you add here becomes part of the live traveler experience and is no
+            longer limited to the original seed set.
+          </p>
 
           {error ? (
             <div className="mt-6 rounded-2xl border border-rose-300/25 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">

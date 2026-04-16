@@ -9,9 +9,13 @@ import Redis from "ioredis";
 import multer from "multer";
 import { createDataStore } from "./db.js";
 
+
+
 const port = process.env.PORT || 4000;
 const app = express();
 const server = http.createServer(app);
+
+console.log("MONGODB_URI =", process.env.MONGODB_URI);
 const store = await createDataStore();
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 const jwtSecret = process.env.JWT_SECRET || "dev-only-change-this-jwt-secret";
@@ -157,6 +161,33 @@ const requireRoles = (...roles) => [
 ];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const generateTicketCode = () =>
+  `TV-${Math.random().toString(36).slice(2, 6).toUpperCase()}${Date.now()
+    .toString()
+    .slice(-4)}`;
+
+const isConcertEvent = (event = {}) =>
+  String(event.category ?? "").toLowerCase() === "concert" ||
+  String(event.eventName ?? "").toLowerCase().includes("concert");
+
+const getPassDiscountPercent = (user, event) => {
+  if (user?.role !== "traveler") return 0;
+  if (user?.subscription?.status !== "active") return 0;
+  return isConcertEvent(event) ? 10 : 0;
+};
+
+const buildTicketPayload = ({ booking, quote, visitDate, slotTime, paymentMethod }) => ({
+  ticketCode: generateTicketCode(),
+  bookingCode: booking.bookingCode,
+  eventName: quote.event?.eventName ?? booking.eventName,
+  landmarkName: quote.landmark?.name ?? booking.landmarkName,
+  visitDate,
+  slotTime,
+  totalAmount: quote.totalAmount,
+  issuedAt: new Date().toISOString(),
+  paymentMethod,
+});
 
 const getCrowdLevel = (percentage) => {
   if (percentage < 35) return "Low";
@@ -383,6 +414,10 @@ app.get("/api/auth/me", verifyToken, (request, response) => {
   response.json({ user: request.user });
 });
 
+app.get("/api/users/me", verifyToken, (request, response) => {
+  response.json(request.user);
+});
+
 app.get("/api/landmarks", async (_request, response) => {
   const landmarks = await store.listLandmarks();
   response.json(landmarks);
@@ -492,22 +527,199 @@ app.post("/api/checkins", verifyToken, async (request, response) => {
 app.get("/api/plans", (_request, response) => {
   response.json([
     {
-      id: "student",
-      name: "Student Pass",
-      price: 49,
+      id: "free",
+      name: "Explorer",
+      price: 0,
       billing: "month",
-      audience: "College students",
-      perks: ["Regional audio", "Offline packs", "Visit badges"],
+      audience: "Guests and casual travelers",
+      role: "traveler",
+      perks: [
+        "Browse all landmarks",
+        "Basic landmark info",
+        "Crowd level indicators",
+        "Friend activity feed",
+        "3 bookings per month",
+      ],
     },
     {
-      id: "traveler",
-      name: "Traveler Pass",
-      price: 99,
+      id: "monthly",
+      name: "Premium",
+      price: 299,
       billing: "month",
-      audience: "Weekend explorers",
-      perks: ["All city guides", "Event reminders", "Friend activity"],
+      audience: "Travelers who want full access",
+      role: "traveler",
+      perks: [
+        "All audio guides",
+        "PDF ticket download",
+        "Priority booking",
+        "10% discount on concerts",
+        "Unlimited bookings",
+      ],
+    },
+    {
+      id: "annual",
+      name: "Premium Annual",
+      price: 1999,
+      billing: "year",
+      audience: "Frequent premium travelers",
+      role: "traveler",
+      perks: [
+        "Everything in Premium",
+        "10% discount on concerts",
+        "Exclusive annual badge",
+        "Priority support",
+      ],
     },
   ]);
+});
+
+app.get("/api/subscription/me", verifyToken, (request, response) => {
+  response.json({
+    subscription: request.user.subscription ?? null,
+    eligible: request.user.role === "traveler",
+  });
+});
+
+app.post("/api/subscriptions/purchase", verifyToken, async (request, response) => {
+  if (request.user.role !== "traveler") {
+    response.status(403).json({ error: "Only travelers can purchase passes." });
+    return;
+  }
+
+  const { planId = "", paymentMethod = "rupay-demo" } = request.body ?? {};
+  const plans = [
+    { id: "student", name: "Student Pass", price: 49 },
+    { id: "premium-traveler", name: "Traveler Premium Pass", price: 99 },
+  ];
+  const plan = plans.find((item) => item.id === planId);
+
+  if (!plan) {
+    sendValidationError(response, "A valid traveler plan is required.");
+    return;
+  }
+
+  const subscription = {
+    planId: plan.id,
+    planName: plan.name,
+    status: "active",
+    price: plan.price,
+    paymentMethod: paymentMethod.trim() || "rupay-demo",
+    passCode: `PASS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    purchasedAt: new Date().toISOString(),
+  };
+
+  const user = await store.updateUserSubscription(request.user.id, subscription);
+
+  await store.createTrackingEvent({
+    type: "plan_purchase",
+    userId: request.user.id,
+    userEmail: request.user.email,
+    metadata: { planId: plan.id, paymentMethod: subscription.paymentMethod },
+  });
+
+  response.status(201).json({
+    message: "Traveler pass activated.",
+    subscription,
+    user,
+  });
+});
+
+app.post("/api/users/upgrade", verifyToken, async (request, response) => {
+  if (request.user.role !== "traveler") {
+    response.status(403).json({ error: "Only travelers can upgrade to premium." });
+    return;
+  }
+
+  const { plan = "monthly" } = request.body ?? {};
+  const planMap = {
+    monthly: { planId: "monthly", planName: "Premium Monthly", price: 299 },
+    annual: { planId: "annual", planName: "Premium Annual", price: 1999 },
+  };
+  const chosenPlan = planMap[plan];
+
+  if (!chosenPlan) {
+    sendValidationError(response, "A valid premium plan is required.");
+    return;
+  }
+
+  const subscription = {
+    planId: chosenPlan.planId,
+    planName: chosenPlan.planName,
+    status: "active",
+    price: chosenPlan.price,
+    paymentMethod: "card-demo",
+    passCode: `PASS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    purchasedAt: new Date().toISOString(),
+    premiumSince: new Date().toISOString(),
+    premiumPlan: chosenPlan.planId,
+  };
+
+  const user = await store.updateUserSubscription(request.user.id, subscription);
+
+  response.json({
+    message: "Welcome to Premium!",
+    user,
+  });
+});
+
+app.get("/api/creator/monuments", ...requireRoles("content-manager"), async (request, response) => {
+  response.json(await store.listCreatorLandmarks(request.user.id));
+});
+
+app.get("/api/creator/stats", ...requireRoles("content-manager"), async (request, response) => {
+  response.json(await store.getCreatorStats(request.user.id));
+});
+
+app.get("/api/creator/bookings/pending", ...requireRoles("content-manager"), async (request, response) => {
+  response.json(await store.listCreatorPendingBookings(request.user.id));
+});
+
+app.post("/api/creator/bookings/:id/approve", ...requireRoles("content-manager"), async (request, response) => {
+  try {
+    const pendingBookings = await store.listCreatorPendingBookings(request.user.id);
+    const booking = pendingBookings.find((item) => item.id === request.params.id);
+
+    if (!booking) {
+      response.status(404).json({ error: "Booking not found." });
+      return;
+    }
+
+    const quote = await store.calculateBookingQuote({
+      eventId: booking.eventId,
+      landmarkId: booking.landmarkId,
+      adults: booking.adults,
+      students: booking.students,
+      children: booking.children,
+      discountPercent: booking.discountPercent ?? 0,
+    });
+
+    const ticket = buildTicketPayload({
+      booking,
+      quote,
+      visitDate: booking.visitDate,
+      slotTime: booking.slotTime,
+      paymentMethod: booking.paymentMethod ?? "rupay-demo",
+    });
+
+    const approvedBooking = await store.approveBooking(request.params.id, {
+      approvedBy: request.user.id,
+      ticket,
+      paymentStatus: booking.paymentStatus ?? "paid",
+    });
+
+    response.json({
+      message: "Booking approved successfully.",
+      booking: approvedBooking,
+    });
+  } catch (error) {
+    if (error.message === "BOOKING_NOT_FOUND") {
+      response.status(404).json({ error: "Booking not found." });
+      return;
+    }
+
+    console.error(error);
+    response.status(500).json({ error: "Unable to approve booking." });
+  }
 });
 
 app.post("/api/uploads", ...requireRoles("content-manager"), upload.single("file"), (request, response) => {
@@ -528,6 +740,7 @@ app.post("/api/landmarks", ...requireRoles("content-manager"), async (request, r
   const {
     name = "",
     location = "",
+    city = "",
     entryFee = "",
     bestTime = "",
     description = "",
@@ -545,7 +758,7 @@ app.post("/api/landmarks", ...requireRoles("content-manager"), async (request, r
   const landmark = await store.createLandmark({
     name: name.trim(),
     location: location.trim(),
-    city: location.trim(),
+    city: city.trim() || location.trim(),
     type: type.trim() || "heritage",
     entryFee: entryFee.trim(),
     bestTime: bestTime.trim(),
@@ -555,6 +768,8 @@ app.post("/api/landmarks", ...requireRoles("content-manager"), async (request, r
     interestingFacts: Array.isArray(interestingFacts)
       ? interestingFacts.filter(Boolean)
       : [],
+    createdBy: request.user.id,
+    createdAt: new Date().toISOString(),
   });
 
   response.status(201).json(landmark);
@@ -568,6 +783,7 @@ app.post("/api/events", ...requireRoles("content-manager"), async (request, resp
     time = "",
     ticketPrice = "",
     description = "",
+    category = "festival",
   } = request.body ?? {};
 
   if (!landmarkId.trim() || !eventName.trim() || !date.trim() || !time.trim()) {
@@ -582,6 +798,8 @@ app.post("/api/events", ...requireRoles("content-manager"), async (request, resp
     time: time.trim(),
     ticketPrice: Number(ticketPrice) || 0,
     description: description.trim(),
+    category: category.trim() || "festival",
+    createdBy: request.user.id,
   });
 
   response.status(201).json(event);
@@ -627,13 +845,14 @@ app.post("/api/bookings/checkout", verifyToken, async (request, response) => {
     eventId = "",
     landmarkId = "",
     visitDate = "",
+    slotTime = "",
     adults = 1,
     students = 0,
     children = 0,
   } = request.body ?? {};
 
-  if (!eventId.trim() || !landmarkId.trim() || !visitDate.trim()) {
-    sendValidationError(response, "Event, landmark, and visit date are required.");
+  if (!eventId.trim() || !landmarkId.trim() || !visitDate.trim() || !slotTime.trim()) {
+    sendValidationError(response, "Event, landmark, visit date, and slot time are required.");
     return;
   }
 
@@ -642,12 +861,18 @@ app.post("/api/bookings/checkout", verifyToken, async (request, response) => {
     return;
   }
 
+  const previewQuote = await store.calculateBookingQuote({
+    eventId: eventId.trim(),
+    landmarkId: landmarkId.trim(),
+  });
+  const discountPercent = getPassDiscountPercent(request.user, previewQuote.event);
   const quote = await store.calculateBookingQuote({
     eventId: eventId.trim(),
     landmarkId: landmarkId.trim(),
     adults,
     students,
     children,
+    discountPercent,
   });
 
   if (!quote.landmark || !quote.event) {
@@ -665,11 +890,13 @@ app.post("/api/bookings/checkout", verifyToken, async (request, response) => {
     eventId: quote.event.id,
     landmarkId: quote.landmark.id,
     visitDate,
+    slotTime,
     adults: Number(adults) || 0,
     students: Number(students) || 0,
     children: Number(children) || 0,
     lineItems: quote.lineItems,
     totalAmount: quote.totalAmount,
+    creatorId: quote.event.createdBy,
   });
 
   const session = await stripe.checkout.sessions.create({
@@ -682,7 +909,7 @@ app.post("/api/bookings/checkout", verifyToken, async (request, response) => {
         unit_amount: item.unitAmount * 100,
         product_data: {
           name: `${quote.event.eventName} - ${item.label}`,
-          description: `${quote.landmark.name} visit on ${visitDate}`,
+          description: `${quote.landmark.name} visit on ${visitDate} at ${slotTime}`,
         },
       },
     })),
@@ -691,6 +918,7 @@ app.post("/api/bookings/checkout", verifyToken, async (request, response) => {
       userId: request.user.id,
       landmarkId: quote.landmark.id,
       eventId: quote.event.id,
+      discountPercent,
     },
     success_url: `${frontendUrl}/dashboard/traveler?booking=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${frontendUrl}/landmark/${quote.landmark.id}?booking=cancelled`,
@@ -710,6 +938,7 @@ app.post("/api/bookings/checkout", verifyToken, async (request, response) => {
       bookingId: booking.id,
       eventId: quote.event.id,
       totalAmount: quote.totalAmount,
+      discountPercent,
     },
   });
 
@@ -717,6 +946,105 @@ app.post("/api/bookings/checkout", verifyToken, async (request, response) => {
     booking: updatedBooking,
     checkoutUrl: session.url,
     sessionId: session.id,
+  });
+});
+
+app.post("/api/bookings/simulate-payment", verifyToken, async (request, response) => {
+  const {
+    eventId = "",
+    landmarkId = "",
+    visitDate = "",
+    slotTime = "",
+    adults = 1,
+    students = 0,
+    children = 0,
+    paymentMethod = "rupay",
+  } = request.body ?? {};
+
+  if (!eventId.trim() || !landmarkId.trim() || !visitDate.trim() || !slotTime.trim()) {
+    sendValidationError(response, "Event, landmark, visit date, and slot time are required.");
+    return;
+  }
+
+  const previewQuote = await store.calculateBookingQuote({
+    eventId: eventId.trim(),
+    landmarkId: landmarkId.trim(),
+  });
+  const discountPercent = getPassDiscountPercent(request.user, previewQuote.event);
+  const quote = await store.calculateBookingQuote({
+    eventId: eventId.trim(),
+    landmarkId: landmarkId.trim(),
+    adults,
+    students,
+    children,
+    discountPercent,
+  });
+
+  if (!quote.landmark || !quote.event) {
+    response.status(404).json({ error: "Booking item not found." });
+    return;
+  }
+
+  if (quote.totalAmount <= 0) {
+    sendValidationError(response, "At least one traveler is required.");
+    return;
+  }
+
+  const booking = await store.createBooking({
+    userId: request.user.id,
+    eventId: quote.event.id,
+    landmarkId: quote.landmark.id,
+    visitDate,
+    slotTime,
+    adults: Number(adults) || 0,
+    students: Number(students) || 0,
+    children: Number(children) || 0,
+    lineItems: quote.lineItems,
+    totalAmount: quote.totalAmount,
+    creatorId: quote.event.createdBy,
+    paymentStatus: "paid",
+    approvalStatus: "pending",
+    paymentMethod: paymentMethod.trim() || "rupay",
+    paidAt: new Date().toISOString(),
+  });
+  const pendingBooking = await store.updateBooking(booking.id, {
+    status: "pending-approval",
+    paymentReference: `SIM-${Date.now()}`,
+    discountPercent,
+  });
+
+  await store.createTrackingEvent({
+    type: "booking_start",
+    landmarkId: quote.landmark.id,
+    userId: request.user.id,
+    userEmail: request.user.email,
+    metadata: {
+      bookingId: booking.id,
+      eventId: quote.event.id,
+      totalAmount: quote.totalAmount,
+      source: "simulated_payment",
+      discountPercent,
+    },
+  });
+
+  await store.createTrackingEvent({
+    type: "booking_pending_approval",
+    landmarkId: quote.landmark.id,
+    userId: request.user.id,
+    userEmail: request.user.email,
+    metadata: {
+      bookingId: booking.id,
+      eventId: quote.event.id,
+      totalAmount: quote.totalAmount,
+      paymentMethod: paymentMethod.trim() || "rupay",
+      discountPercent,
+    },
+  });
+
+  response.status(201).json({
+    message: "Payment captured. Your booking is pending creator approval.",
+    booking: pendingBooking,
+    discountPercent,
   });
 });
 

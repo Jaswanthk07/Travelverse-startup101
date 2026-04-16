@@ -28,6 +28,7 @@ const toUserPayload = (user) => ({
   email: user.email,
   role: user.role,
   avatarUrl: user.avatarUrl,
+  subscription: user.subscription ?? null,
   createdAt: user.createdAt,
 });
 
@@ -151,6 +152,7 @@ const createMemoryStore = () => {
         role,
         avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(name)}`,
         passwordHash: await bcrypt.hash(password, 12),
+        subscription: null,
         createdAt: toIso(),
       };
 
@@ -169,6 +171,17 @@ const createMemoryStore = () => {
     async getUserById(id) {
       const user = findUserById(id);
       return user ? toUserPayload(user) : null;
+    },
+    async updateUserSubscription(userId, subscription) {
+      const user = findUserById(userId);
+
+      if (!user) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      user.subscription = subscription;
+      user.updatedAt = toIso();
+      return toUserPayload(user);
     },
     async listDiscoverableUsers(currentUserId = "") {
       const people = users
@@ -274,6 +287,7 @@ const createMemoryStore = () => {
       const nextEvent = {
         ...event,
         id: event.id || createSlug(event.eventName),
+        category: event.category || "festival",
       };
       monumentEvents.push(nextEvent);
       return nextEvent;
@@ -303,6 +317,9 @@ const createMemoryStore = () => {
     async listLandmarks() {
       return landmarks;
     },
+    async listCreatorLandmarks(creatorId) {
+      return landmarks.filter((landmark) => landmark.createdBy === creatorId);
+    },
     async searchLandmarks({ q = "", city = "", type = "" } = {}) {
       const term = q.trim().toLowerCase();
       return landmarks.filter((landmark) => {
@@ -330,6 +347,33 @@ const createMemoryStore = () => {
       });
       landmarks.push(nextLandmark);
       return nextLandmark;
+    },
+    async getCreatorStats(creatorId) {
+      const creatorLandmarks = landmarks.filter((landmark) => landmark.createdBy === creatorId);
+      const creatorLandmarkIds = new Set(creatorLandmarks.map((landmark) => landmark.id));
+      const totalViews = trackingEvents.filter(
+        (event) => event.type === "landmark_view" && creatorLandmarkIds.has(event.landmarkId)
+      ).length;
+      const totalBookings = bookings.filter(
+        (booking) => booking.status === "confirmed" && creatorLandmarkIds.has(booking.landmarkId)
+      ).length;
+      const recentActivity = trackingEvents
+        .filter(
+          (event) => event.type === "landmark_view" && creatorLandmarkIds.has(event.landmarkId)
+        )
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10)
+        .map((event) => ({
+          ...event,
+          timestamp: event.createdAt,
+        }));
+
+      return {
+        monumentCount: creatorLandmarks.length,
+        totalViews,
+        totalBookings,
+        recentActivity,
+      };
     },
     async updateLandmark(id, updates) {
       const index = landmarks.findIndex((landmark) => landmark.id === id);
@@ -402,21 +446,71 @@ const createMemoryStore = () => {
         .filter((booking) => booking.userId === userId)
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     },
-    calculateBookingQuote({ landmarkId, eventId, adults = 1, students = 0, children = 0 }) {
+    async listCreatorPendingBookings(creatorId) {
+      return bookings
+        .filter(
+          (booking) =>
+            booking.creatorId === creatorId &&
+            ["pending-approval", "pending"].includes(booking.status)
+        )
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+    async approveBooking(id, updates = {}) {
+      const index = bookings.findIndex((booking) => booking.id === id);
+      if (index === -1) throw new Error("BOOKING_NOT_FOUND");
+      bookings[index] = {
+        ...bookings[index],
+        ...updates,
+        status: "confirmed",
+        approvalStatus: "approved",
+        approvedAt: toIso(),
+        updatedAt: toIso(),
+      };
+      trackingEvents.push({
+        id: crypto.randomUUID(),
+        type: "event_booking",
+        landmarkId: bookings[index].landmarkId,
+        userId: bookings[index].userId,
+        metadata: { bookingId: bookings[index].id },
+        createdAt: toIso(),
+      });
+      return bookings[index];
+    },
+    calculateBookingQuote({
+      landmarkId,
+      eventId,
+      adults = 1,
+      students = 0,
+      children = 0,
+      discountPercent = 0,
+    }) {
       const landmark = landmarks.find((item) => item.id === landmarkId);
       const event = monumentEvents.find((item) => item.id === eventId);
       const base = Number(event?.ticketPrice) || parseEntryFee(landmark?.entryFee);
+      const discountMultiplier = Math.max(0, 1 - Number(discountPercent || 0) / 100);
       const lineItems = [
-        { label: "Adults", quantity: Number(adults) || 0, unitAmount: base },
-        { label: "Students", quantity: Number(students) || 0, unitAmount: Math.round(base * 0.7) },
-        { label: "Children", quantity: Number(children) || 0, unitAmount: Math.round(base * 0.5) },
+        {
+          label: "Adults",
+          quantity: Number(adults) || 0,
+          unitAmount: Math.round(base * discountMultiplier),
+        },
+        {
+          label: "Students",
+          quantity: Number(students) || 0,
+          unitAmount: Math.round(base * 0.7 * discountMultiplier),
+        },
+        {
+          label: "Children",
+          quantity: Number(children) || 0,
+          unitAmount: Math.round(base * 0.5 * discountMultiplier),
+        },
       ].filter((item) => item.quantity > 0);
       const totalAmount = lineItems.reduce(
         (total, item) => total + item.quantity * item.unitAmount,
         0
       );
 
-      return { landmark, event, lineItems, totalAmount };
+      return { landmark, event, lineItems, totalAmount, discountPercent: Number(discountPercent || 0) };
     },
   };
 };
@@ -490,6 +584,7 @@ const createMongoStore = async (connectionString) => {
         role,
         avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(name)}`,
         passwordHash: await bcrypt.hash(password, 12),
+        subscription: null,
         createdAt: toIso(),
       };
 
@@ -516,6 +611,20 @@ const createMongoStore = async (connectionString) => {
     async getUserById(id) {
       const user = await getUserByIdInternal(id);
       return user ? toUserPayload(user) : null;
+    },
+    async updateUserSubscription(userId, subscription) {
+      const query = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { id: userId };
+      const result = await usersCollection.findOneAndUpdate(
+        query,
+        { $set: { subscription, updatedAt: toIso() } },
+        { returnDocument: "after" }
+      );
+
+      if (!result) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      return toUserPayload(result);
     },
     async listDiscoverableUsers(currentUserId = "") {
       const users = await usersCollection
@@ -672,6 +781,7 @@ const createMongoStore = async (connectionString) => {
       const nextEvent = {
         ...event,
         id: event.id || createSlug(event.eventName),
+        category: event.category || "festival",
       };
 
       await monumentEventsCollection.insertOne(nextEvent);
@@ -703,6 +813,9 @@ const createMongoStore = async (connectionString) => {
     },
     async listLandmarks() {
       return landmarksCollection.find({}, { projection: { _id: 0 } }).toArray();
+    },
+    async listCreatorLandmarks(creatorId) {
+      return landmarksCollection.find({ createdBy: creatorId }, { projection: { _id: 0 } }).toArray();
     },
     async searchLandmarks({ q = "", city = "", type = "" } = {}) {
       const query = {};
@@ -738,6 +851,43 @@ const createMongoStore = async (connectionString) => {
 
       await landmarksCollection.insertOne(nextLandmark);
       return nextLandmark;
+    },
+    async getCreatorStats(creatorId) {
+      const creatorLandmarks = await landmarksCollection
+        .find({ createdBy: creatorId }, { projection: { _id: 0, id: 1 } })
+        .toArray();
+      const creatorLandmarkIds = creatorLandmarks.map((landmark) => landmark.id);
+      const [totalViews, totalBookings, recentActivity] = await Promise.all([
+        trackingCollection.countDocuments({
+          type: "landmark_view",
+          landmarkId: { $in: creatorLandmarkIds },
+        }),
+        bookingsCollection.countDocuments({
+          status: "confirmed",
+          landmarkId: { $in: creatorLandmarkIds },
+        }),
+        trackingCollection
+          .find(
+            {
+              type: "landmark_view",
+              landmarkId: { $in: creatorLandmarkIds },
+            },
+            { projection: { _id: 0 } }
+          )
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .toArray(),
+      ]);
+
+      return {
+        monumentCount: creatorLandmarks.length,
+        totalViews,
+        totalBookings,
+        recentActivity: recentActivity.map((event) => ({
+          ...event,
+          timestamp: event.createdAt,
+        })),
+      };
     },
     async updateLandmark(id, updates) {
       const current = await getLandmark(id);
@@ -837,20 +987,81 @@ const createMongoStore = async (connectionString) => {
         _id: undefined,
       }));
     },
-    async calculateBookingQuote({ landmarkId, eventId, adults = 1, students = 0, children = 0 }) {
+    async listCreatorPendingBookings(creatorId) {
+      const bookings = await bookingsCollection
+        .find(
+          {
+            creatorId,
+            status: { $in: ["pending-approval", "pending"] },
+          },
+          { projection: { _id: 0 } }
+        )
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      return bookings;
+    },
+    async approveBooking(id, updates = {}) {
+      const query = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { id };
+      const result = await bookingsCollection.findOneAndUpdate(
+        query,
+        {
+          $set: {
+            ...updates,
+            status: "confirmed",
+            approvalStatus: "approved",
+            approvedAt: toIso(),
+            updatedAt: toIso(),
+          },
+        },
+        { returnDocument: "after" }
+      );
+      if (!result) throw new Error("BOOKING_NOT_FOUND");
+
+      await trackingCollection.insertOne({
+        type: "event_booking",
+        landmarkId: result.landmarkId,
+        userId: result.userId,
+        metadata: { bookingId: result._id.toString() },
+        createdAt: toIso(),
+      });
+
+      return { id: result._id.toString(), ...result };
+    },
+    async calculateBookingQuote({
+      landmarkId,
+      eventId,
+      adults = 1,
+      students = 0,
+      children = 0,
+      discountPercent = 0,
+    }) {
       const [landmark, event] = await Promise.all([getLandmark(landmarkId), getEvent(eventId)]);
       const base = Number(event?.ticketPrice) || parseEntryFee(landmark?.entryFee);
+      const discountMultiplier = Math.max(0, 1 - Number(discountPercent || 0) / 100);
       const lineItems = [
-        { label: "Adults", quantity: Number(adults) || 0, unitAmount: base },
-        { label: "Students", quantity: Number(students) || 0, unitAmount: Math.round(base * 0.7) },
-        { label: "Children", quantity: Number(children) || 0, unitAmount: Math.round(base * 0.5) },
+        {
+          label: "Adults",
+          quantity: Number(adults) || 0,
+          unitAmount: Math.round(base * discountMultiplier),
+        },
+        {
+          label: "Students",
+          quantity: Number(students) || 0,
+          unitAmount: Math.round(base * 0.7 * discountMultiplier),
+        },
+        {
+          label: "Children",
+          quantity: Number(children) || 0,
+          unitAmount: Math.round(base * 0.5 * discountMultiplier),
+        },
       ].filter((item) => item.quantity > 0);
       const totalAmount = lineItems.reduce(
         (total, item) => total + item.quantity * item.unitAmount,
         0
       );
 
-      return { landmark, event, lineItems, totalAmount };
+      return { landmark, event, lineItems, totalAmount, discountPercent: Number(discountPercent || 0) };
     },
     async close() {
       await client.close();

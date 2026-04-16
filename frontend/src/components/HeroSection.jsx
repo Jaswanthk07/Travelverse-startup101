@@ -1,7 +1,17 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import heroOrb from '../assets/hero-orb.svg'
 
 function HeroSection() {
+  const { user } = useAuth()
+  const isGuest = !user
+  const primaryCta =
+    user?.role === 'content-manager'
+      ? { to: '/creator', label: 'Open Creator Dashboard' }
+      : user?.role === 'traveler'
+        ? { to: '/dashboard/traveler', label: 'Open Traveler Dashboard' }
+        : { to: '/signup', label: 'Start Exploring' }
+
   return (
     <section className="relative overflow-hidden pb-20 pt-16 sm:pb-24 sm:pt-20">
       <div className="section-shell grid items-center gap-14 lg:grid-cols-[1.1fr_0.9fr]">
@@ -26,17 +36,19 @@ function HeroSection() {
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
             <Link
-              to="/signup"
+              to={primaryCta.to}
               className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-400 to-cyan-300 px-7 py-4 text-base font-bold text-slate-950 shadow-glow transition hover:-translate-y-1"
             >
-              Start Exploring
+              {primaryCta.label}
             </Link>
-            <Link
-              to="/signup"
-              className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 px-7 py-4 text-base font-semibold text-white transition hover:border-white/30 hover:bg-white/15"
-            >
-              Create Demo Account
-            </Link>
+            {isGuest ? (
+              <Link
+                to="/signup"
+                className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 px-7 py-4 text-base font-semibold text-white transition hover:border-white/30 hover:bg-white/15"
+              >
+                Create Demo Account
+              </Link>
+            ) : null}
           </div>
 
           <div className="mt-12 grid max-w-2xl gap-4 sm:grid-cols-3">

@@ -35,9 +35,17 @@ const allowedOrigins = [
   "https://travelverse-startup101-z5jn.vercel.app",
 ].filter(Boolean);
 
+const allowedOriginPatterns = [
+  /^https:\/\/travelverse-startup101-z5jn(?:-[a-z0-9-]+)?\.vercel\.app$/,
+];
+
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const isAllowedPattern = allowedOriginPatterns.some((pattern) =>
+      pattern.test(origin ?? "")
+    );
+
+    if (!origin || allowedOrigins.includes(origin) || isAllowedPattern) {
       callback(null, true);
       return;
     }

@@ -1,148 +1,238 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { useLandmarks } from "../context/LandmarksContext";
+import { getStatsSummary } from "../lib/api";
+
+const tabs = ["landmarks", "events", "analytics"];
+
+function StatPanel({ label, value }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/5 p-5">
+      <p className="text-sm uppercase tracking-[0.22em] text-sky-100/70">{label}</p>
+      <p className="mt-3 font-display text-4xl font-bold text-white">{value}</p>
+    </div>
+  );
+}
 
 function ContentDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { events, isLoading: isEventsLoading, removeEvent } = useEvents();
   const { landmarks, isLoading, removeLandmark } = useLandmarks();
+  const [activeTab, setActiveTab] = useState("landmarks");
+  const [stats, setStats] = useState({});
 
-  const handleDelete = async (id) => {
-    await removeLandmark(id);
-  };
+  useEffect(() => {
+    getStatsSummary().then(setStats);
+  }, []);
 
   return (
     <main className="section-shell py-16">
       <section className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-amber-300/10 via-white/5 to-sky-400/10 p-8 shadow-glow sm:p-10">
         <p className="text-sm uppercase tracking-[0.3em] text-amber-100/80">
-          Content Creator Panel
+          Admin Dashboard
         </p>
         <h1 className="mt-3 font-display text-4xl font-bold text-white sm:text-5xl">
-          Manage landmark content
+          Manage TravelVerse V2.0
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-8 text-slate-300">
-          Add new locations, upload media, and edit or delete landmark stories for the
-          TravelVerse MVP.
+          Review content, events, booking demand, check-ins, and interaction
+          signals from one workspace.
         </p>
         <p className="mt-4 text-sm text-amber-100/80">
-          Logged in as {user?.name} (Content Creator)
+          Logged in as {user?.name} ({user?.role})
         </p>
 
-        <Link
-          to="/dashboard/content/new"
-          className="mt-8 inline-flex rounded-full bg-gradient-to-r from-amber-300 to-sky-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5"
-        >
-          Add New Landmark
-        </Link>
-        <Link
-          to="/dashboard/content/events/new"
-          className="ml-3 mt-8 inline-flex rounded-full border border-sky-300/30 bg-sky-300/10 px-6 py-3 text-sm font-semibold text-sky-100 transition hover:-translate-y-0.5"
-        >
-          Add Event
-        </Link>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            to="/dashboard/content/new"
+            className="rounded-lg bg-gradient-to-r from-amber-300 to-sky-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5"
+          >
+            Add Landmark
+          </Link>
+          <Link
+            to="/dashboard/content/events/new"
+            className="rounded-lg border border-sky-300/30 bg-sky-300/10 px-6 py-3 text-sm font-semibold text-sky-100 transition hover:-translate-y-0.5"
+          >
+            Add Event
+          </Link>
+        </div>
       </section>
 
-      <section className="py-12">
-        <div className="mb-8 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-sky-100/80">
-              Landmarks List
-            </p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-white">
-              Existing locations
-            </h2>
-          </div>
-          <p className="text-sm text-slate-400">{landmarks.length} total landmarks</p>
+      <section className="py-10">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <StatPanel label="Landmarks" value={stats.totalLandmarks ?? landmarks.length} />
+          <StatPanel label="Events" value={stats.totalEvents ?? events.length} />
+          <StatPanel label="Users" value={stats.totalUsers ?? 0} />
+          <StatPanel label="Bookings" value={stats.totalBookings ?? 0} />
+          <StatPanel label="Check-ins" value={stats.totalCheckIns ?? 0} />
         </div>
-
-        {isLoading ? (
-          <div className="glass-panel rounded-[1.5rem] p-8 text-slate-300">
-            Loading landmarks...
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {landmarks.map((landmark) => (
-              <div
-                key={landmark.id}
-                className="glass-panel flex flex-col gap-4 rounded-[1.5rem] p-6 shadow-soft sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <h3 className="font-display text-2xl font-semibold text-white">
-                    {landmark.name}
-                  </h3>
-                  <p className="mt-2 text-sm text-slate-300">{landmark.location}</p>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/dashboard/content/edit/${landmark.id}`)}
-                    className="rounded-full border border-sky-300/30 bg-sky-300/10 px-5 py-3 text-sm font-semibold text-sky-100"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(landmark.id)}
-                    className="rounded-full border border-rose-300/30 bg-rose-300/10 px-5 py-3 text-sm font-semibold text-rose-100"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
 
-      <section className="pb-12">
-        <div className="mb-8 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-amber-100/80">
-              Events
-            </p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-white">
-              Monument events
-            </h2>
+      <div className="mb-8 flex flex-wrap gap-3">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`rounded-lg px-5 py-3 text-sm font-bold capitalize transition ${
+              activeTab === tab
+                ? "bg-white text-slate-950"
+                : "border border-white/15 bg-white/10 text-white"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "landmarks" ? (
+        <section className="pb-12">
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-100/80">
+                Landmarks
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-white">
+                Destination content
+              </h2>
+            </div>
+            <p className="text-sm text-slate-400">{landmarks.length} total</p>
           </div>
-          <p className="text-sm text-slate-400">{events.length} total events</p>
-        </div>
 
-        {isEventsLoading ? (
-          <div className="glass-panel rounded-[1.5rem] p-8 text-slate-300">Loading events...</div>
-        ) : (
-          <div className="space-y-4">
-            {events.map((event) => {
-              const landmark = landmarks.find((item) => item.id === event.landmarkId);
-
-              return (
+          {isLoading ? (
+            <div className="glass-panel rounded-lg p-8 text-slate-300">
+              Loading landmarks...
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-white/10">
+              {landmarks.map((landmark) => (
                 <div
-                  key={event.id}
-                  className="glass-panel flex flex-col gap-4 rounded-[1.5rem] p-6 shadow-soft sm:flex-row sm:items-center sm:justify-between"
+                  key={landmark.id}
+                  className="grid gap-4 border-b border-white/10 bg-white/5 p-5 last:border-b-0 lg:grid-cols-[1fr_auto]"
                 >
                   <div>
                     <h3 className="font-display text-2xl font-semibold text-white">
-                      {event.eventName}
+                      {landmark.name}
                     </h3>
                     <p className="mt-2 text-sm text-slate-300">
-                      {landmark?.name ?? event.landmarkId} • {event.date} • {event.time} • ₹
-                      {event.ticketPrice}
+                      {landmark.location} · {landmark.type ?? "heritage"}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeEvent(event.id)}
-                    className="rounded-full border border-rose-300/30 bg-rose-300/10 px-5 py-3 text-sm font-semibold text-rose-100"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/content/edit/${landmark.id}`)}
+                      className="rounded-lg border border-sky-300/30 bg-sky-300/10 px-5 py-3 text-sm font-semibold text-sky-100"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeLandmark(landmark.id)}
+                      className="rounded-lg border border-rose-300/30 bg-rose-300/10 px-5 py-3 text-sm font-semibold text-rose-100"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === "events" ? (
+        <section className="pb-12">
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.3em] text-amber-100/80">
+                Events
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-white">
+                Monument experiences
+              </h2>
+            </div>
+            <p className="text-sm text-slate-400">{events.length} total</p>
           </div>
-        )}
-      </section>
+
+          {isEventsLoading ? (
+            <div className="glass-panel rounded-lg p-8 text-slate-300">Loading events...</div>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-white/10">
+              {events.map((event) => {
+                const landmark = landmarks.find((item) => item.id === event.landmarkId);
+
+                return (
+                  <div
+                    key={event.id}
+                    className="grid gap-4 border-b border-white/10 bg-white/5 p-5 last:border-b-0 lg:grid-cols-[1fr_auto]"
+                  >
+                    <div>
+                      <h3 className="font-display text-2xl font-semibold text-white">
+                        {event.eventName}
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-300">
+                        {landmark?.name ?? event.landmarkId} · {event.date} · {event.time} · ₹
+                        {event.ticketPrice}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeEvent(event.id)}
+                      className="rounded-lg border border-rose-300/30 bg-rose-300/10 px-5 py-3 text-sm font-semibold text-rose-100"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === "analytics" ? (
+        <section className="pb-12">
+          <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+            <div className="rounded-lg border border-white/10 bg-white/5 p-6">
+              <p className="text-sm uppercase tracking-[0.25em] text-cyan-100/80">
+                Engagement
+              </p>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <StatPanel label="Sessions" value={stats.sessions ?? 0} />
+                <StatPanel label="Views" value={stats.landmarkViews ?? 0} />
+                <StatPanel label="Scans" value={stats.scans ?? 0} />
+                <StatPanel label="Booking starts" value={stats.bookingStarts ?? 0} />
+              </div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-white/5 p-6">
+              <p className="text-sm uppercase tracking-[0.25em] text-emerald-100/80">
+                Top landmarks
+              </p>
+              <div className="mt-5 space-y-3">
+                {(stats.topLandmarks ?? []).length ? (
+                  stats.topLandmarks.map((item) => (
+                    <div
+                      key={item.landmarkId}
+                      className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3"
+                    >
+                      <span className="font-semibold text-white">{item.landmarkId}</span>
+                      <span className="text-sm text-slate-300">{item.count} signals</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-7 text-slate-300">
+                    Top landmark rankings appear after visitors scan, view, book, and check in.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

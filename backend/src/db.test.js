@@ -36,12 +36,12 @@ test("memory store tracks summary counts", async () => {
 
   const summary = await store.getSummary();
 
-  assert.deepEqual(summary, {
-    scans: 1,
-    landmarkViews: 1,
-    feedbackResponses: 1,
-    eventBookings: 1,
-  });
+  assert.equal(summary.scans, 1);
+  assert.equal(summary.landmarkViews, 1);
+  assert.equal(summary.feedbackResponses, 1);
+  assert.equal(summary.eventBookings, 1);
+  assert.equal(summary.totalEvents, 2);
+  assert.equal(summary.totalLandmarks, 3);
 });
 
 test("memory store creates, updates, and deletes landmark content", async () => {
@@ -65,7 +65,7 @@ test("memory store creates, updates, and deletes landmark content", async () => 
     description: "Updated description",
   });
 
-  assert.equal(updated.description, "Updated description");
+  assert.deepEqual(updated.description, ["Updated description"]);
 
   await store.deleteLandmark(landmark.id);
 

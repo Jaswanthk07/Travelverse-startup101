@@ -1,23 +1,25 @@
 import { Link } from 'react-router-dom'
+import ExpansionCities from '../components/ExpansionCities'
 import HeroSection from '../components/HeroSection'
 import LandmarkCard from '../components/LandmarkCard'
+import StudentPricing from '../components/StudentPricing'
 import { useLandmarks } from '../context/LandmarksContext'
 
 const features = [
   {
-    title: 'Scan-first Discovery',
+    title: 'Fast AR Scan',
     description:
-      'Point your camera at a landmark and surface stories, facts, and historical highlights instantly.',
+      'Point your camera at a landmark and get a simulated detection result in under two seconds.',
   },
   {
-    title: 'Audio Learning Layer',
+    title: 'Live Crowd + Booking',
     description:
-      'Narrated guides transform quick visits into memorable, educational experiences for tourists.',
+      'Check hourly crowd levels, pick the best time to visit, and book event tickets inside the app.',
   },
   {
-    title: 'Reward-ready Journeys',
+    title: 'Regional Offline Guides',
     description:
-      'The product foundation supports future badges, quests, and gamified cultural exploration.',
+      'Use short guides, Telugu and Hindi audio modes, shareable badges, and saved content packs.',
   },
 ]
 
@@ -118,6 +120,10 @@ function Home() {
           </div>
         </div>
       </section>
+
+      <ExpansionCities />
+
+      <StudentPricing />
 
       <section className="pb-24">
         <div className="section-shell">

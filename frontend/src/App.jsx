@@ -39,7 +39,7 @@ function App() {
         <Route
           path="/dashboard/content"
           element={
-            <ProtectedRoute allowedRoles={["content-manager"]}>
+            <ProtectedRoute allowedRoles={["content-manager", "admin"]}>
               <ContentDashboard />
             </ProtectedRoute>
           }
@@ -47,7 +47,7 @@ function App() {
         <Route
           path="/dashboard/content/new"
           element={
-            <ProtectedRoute allowedRoles={["content-manager"]}>
+            <ProtectedRoute allowedRoles={["content-manager", "admin"]}>
               <AddLandmark />
             </ProtectedRoute>
           }
@@ -55,7 +55,7 @@ function App() {
         <Route
           path="/dashboard/content/events/new"
           element={
-            <ProtectedRoute allowedRoles={["content-manager"]}>
+            <ProtectedRoute allowedRoles={["content-manager", "admin"]}>
               <AddEvent />
             </ProtectedRoute>
           }
@@ -63,7 +63,7 @@ function App() {
         <Route
           path="/dashboard/content/edit/:id"
           element={
-            <ProtectedRoute allowedRoles={["content-manager"]}>
+            <ProtectedRoute allowedRoles={["content-manager", "admin"]}>
               <AddLandmark />
             </ProtectedRoute>
           }

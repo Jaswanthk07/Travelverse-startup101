@@ -7,12 +7,10 @@ import {
   updateLandmark,
 } from "../lib/api";
 import { normalizeLandmarkMedia } from "../lib/landmarkMedia";
-import { useAuth } from "./AuthContext";
 
 const LandmarksContext = createContext(null);
 
 export function LandmarksProvider({ children }) {
-  const { user } = useAuth();
   const [landmarks, setLandmarks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,20 +33,14 @@ export function LandmarksProvider({ children }) {
   }, []);
 
   const addLandmark = async (payload) => {
-    const created = await createLandmark({
-      ...payload,
-      requesterRole: user?.role,
-    });
+    const created = await createLandmark(payload);
 
     setLandmarks((current) => [...current, normalizeLandmarkMedia(created)]);
     return created;
   };
 
   const editLandmark = async (id, payload) => {
-    const updated = await updateLandmark(id, {
-      ...payload,
-      requesterRole: user?.role,
-    });
+    const updated = await updateLandmark(id, payload);
 
     setLandmarks((current) =>
       current.map((landmark) =>
@@ -60,7 +52,7 @@ export function LandmarksProvider({ children }) {
   };
 
   const removeLandmark = async (id) => {
-    await deleteLandmark(id, user?.role);
+    await deleteLandmark(id);
     setLandmarks((current) => current.filter((landmark) => landmark.id !== id));
   };
 

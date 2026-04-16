@@ -1,4 +1,18 @@
-function ScannerModal({ isOpen, onClose }) {
+import { useEffect, useState } from "react";
+
+function ScannerModal({ isOpen, onClose, landmark }) {
+  const [isDetected, setIsDetected] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsDetected(false);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => setIsDetected(true), 1200);
+    return () => window.clearTimeout(timeoutId);
+  }, [isOpen]);
+
   if (!isOpen) {
     return null;
   }
@@ -23,16 +37,18 @@ function ScannerModal({ isOpen, onClose }) {
               <span>AR Vision</span>
             </div>
             <div className="absolute bottom-10 left-1/2 w-[85%] -translate-x-1/2 rounded-[1.5rem] border border-white/15 bg-slate-950/75 p-6 text-center backdrop-blur-xl">
-              <p className="text-sm font-semibold text-slate-300">Camera scanning...</p>
+              <p className="text-sm font-semibold text-slate-300">
+                {isDetected ? "Detected in 1.2 seconds" : "Camera scanning..."}
+              </p>
               <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">
-                Taj Mahal detected
+                {isDetected ? `${landmark?.name ?? "Landmark"} detected` : "Looking for landmark edges"}
               </p>
               <p className="mt-3 font-display text-2xl font-bold text-white sm:text-3xl">
-                Tap to Explore Story
+                {isDetected ? "Tap to Explore Story" : "Keep the monument inside the frame"}
               </p>
               <p className="mt-2 text-sm text-slate-300">
-                This modal simulates the TravelVerse AR scanning experience for
-                MVP testing.
+                Camera-based AR is simulated here for testing before connecting
+                a production vision model.
               </p>
               <button
                 type="button"

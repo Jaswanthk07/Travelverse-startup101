@@ -1,31 +1,46 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { loginUser, signupUser } from "../lib/api";
+import { fetchCurrentUser, loginUser, setAuthToken, signupUser } from "../lib/api";
 
-const AUTH_STORAGE_KEY = "travelverse-auth-user";
+const AUTH_TOKEN_KEY = "travelverse-jwt-token";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState("");
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
+    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
 
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    if (!storedToken) {
+      setIsReady(true);
+      return;
     }
 
-    setIsReady(true);
+    setAuthToken(storedToken);
+    setToken(storedToken);
+
+    fetchCurrentUser()
+      .then((response) => setUser(response.user))
+      .catch(() => {
+        setAuthToken("");
+        setToken("");
+        setUser(null);
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+      })
+      .finally(() => setIsReady(true));
   }, []);
 
-  const persistUser = (nextUser) => {
+  const persistSession = (nextToken, nextUser) => {
+    setAuthToken(nextToken);
+    setToken(nextToken);
     setUser(nextUser);
 
-    if (nextUser) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
+    if (nextToken) {
+      localStorage.setItem(AUTH_TOKEN_KEY, nextToken);
     } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
     }
   };
 
@@ -33,19 +48,20 @@ export function AuthProvider({ children }) {
 
   const login = async (payload) => {
     const response = await loginUser(payload);
-    persistUser(response.user);
+    persistSession(response.token, response.user);
     return response.user;
   };
 
   const logout = () => {
-    persistUser(null);
+    persistSession("", null);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: Boolean(user),
+        token,
+        isAuthenticated: Boolean(user && token),
         isReady,
         signup,
         login,

@@ -29,7 +29,7 @@ function Navbar() {
               TravelVerse
             </p>
             <p className="text-xs uppercase tracking-[0.3em] text-sky-200/70">
-              AR Travel MVP
+              Travel V2
             </p>
           </div>
         </Link>
@@ -85,7 +85,11 @@ function Navbar() {
             <div className="hidden text-right sm:block">
               <p className="text-sm font-semibold text-white">{user?.name ?? "Traveler"}</p>
               <p className="text-xs text-slate-400">
-                {user?.role === "content-manager" ? "Content Creator" : "Traveler"} • {user?.email}
+                {user?.role === "admin"
+                  ? "Admin"
+                  : user?.role === "content-manager"
+                    ? "Content Creator"
+                    : "Traveler"} • {user?.email}
               </p>
             </div>
             <button

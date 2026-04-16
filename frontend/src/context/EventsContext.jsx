@@ -5,12 +5,10 @@ import {
   fetchEvents,
   fetchEventsByLandmark,
 } from "../lib/api";
-import { useAuth } from "./AuthContext";
 
 const EventsContext = createContext(null);
 
 export function EventsProvider({ children }) {
-  const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,17 +31,14 @@ export function EventsProvider({ children }) {
   }, []);
 
   const addEvent = async (payload) => {
-    const created = await createMonumentEvent({
-      ...payload,
-      requesterRole: user?.role,
-    });
+    const created = await createMonumentEvent(payload);
 
     setEvents((current) => [...current, created]);
     return created;
   };
 
   const removeEvent = async (id) => {
-    await deleteMonumentEvent(id, user?.role);
+    await deleteMonumentEvent(id);
     setEvents((current) => current.filter((event) => event.id !== id));
   };
 

@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import AudioPlayer from "../components/AudioPlayer";
+import BookingCheckout from "../components/BookingCheckout";
+import CrowdStatus from "../components/CrowdStatus";
 import FeedbackButtons from "../components/FeedbackButtons";
+import OfflineDownload from "../components/OfflineDownload";
+import RegionalAudioGuide from "../components/RegionalAudioGuide";
+import ShareVisitBadge from "../components/ShareVisitBadge";
 import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { useLandmarks } from "../context/LandmarksContext";
-import { registerForEvent, trackEvent } from "../lib/api";
-
-const BOOKINGS_STORAGE_KEY = "travelverse-bookings";
+import { createCheckIn, trackEvent } from "../lib/api";
 
 const formatEventDate = (value) => {
   if (!value) {
@@ -37,8 +39,7 @@ function LandmarkDetails() {
   const [feedback, setFeedback] = useState("");
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [ticketCount, setTicketCount] = useState(1);
-  const [bookingMessage, setBookingMessage] = useState("");
+  const [checkInMessage, setCheckInMessage] = useState("");
 
   useEffect(() => {
     if (landmark) {
@@ -113,38 +114,25 @@ function LandmarkDetails() {
 
   const handleBookTickets = (eventItem) => {
     setSelectedEvent(eventItem);
-    setTicketCount(1);
-    setBookingMessage("");
   };
 
-  const confirmBooking = async () => {
-    if (!selectedEvent) {
-      return;
+  const handleCheckIn = async () => {
+    try {
+      const checkIn = await createCheckIn({
+        landmarkId: landmark.id,
+        note: `Visited ${landmark.name}`,
+      });
+
+      setCheckInMessage(`Checked in at ${checkIn.landmarkName}. Your friends can see it now.`);
+    } catch (error) {
+      setCheckInMessage(error.message);
     }
-
-    const response = await registerForEvent(selectedEvent.id, {
-      travelerName: user?.name ?? "Traveler",
-      travelerEmail: user?.email ?? "",
-      landmarkId: landmark.id,
-      landmarkName: landmark.name,
-      eventName: selectedEvent.eventName,
-      ticketCount,
-      totalPrice: Number(selectedEvent.ticketPrice) * Number(ticketCount),
-    });
-
-    const booking = response.registration;
-    const existing = JSON.parse(localStorage.getItem(BOOKINGS_STORAGE_KEY) ?? "[]");
-    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify([...existing, booking]));
-    setBookingMessage(`Booking Successful. Booking ID: ${booking.bookingId}`);
-    setSelectedEvent(null);
-
-    await trackEvent({
-      type: "event_booking",
-      landmarkId: landmark.id,
-      userEmail: user?.email ?? "",
-      feedback: booking.bookingId,
-    });
   };
+
+  const shortGuide = [
+    landmark.shortDescription,
+    ...(landmark.interestingFacts ?? []),
+  ].filter(Boolean).slice(0, 4);
 
   return (
     <main className="section-shell py-16">
@@ -177,13 +165,52 @@ function LandmarkDetails() {
             </div>
           </div>
 
-          <div className="mt-8 space-y-5 text-sm leading-8 text-slate-300">
-            {landmark.description.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
+          <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
+            <p className="text-sm uppercase tracking-[0.25em] text-cyan-100/80">
+              Short Guide
+            </p>
+            <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
+              {shortGuide.map((point) => (
+                <li key={point} className="flex gap-3">
+                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-cyan-200" />
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <AudioPlayer src={landmark.audioGuide} />
+          <details className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-[0.25em] text-slate-200">
+              Full Story
+            </summary>
+            <div className="mt-5 space-y-5 text-sm leading-8 text-slate-300">
+              {landmark.description.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </details>
+
+          <CrowdStatus landmarkId={landmark.id} />
+
+          <RegionalAudioGuide src={landmark.audioGuide} />
+
+          <OfflineDownload landmark={landmark} />
+
+          <ShareVisitBadge landmark={landmark} />
+
+          <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
+            <p className="text-sm uppercase tracking-[0.25em] text-violet-100/80">
+              Camera AR
+            </p>
+            <h2 className="mt-2 font-display text-2xl font-semibold text-white">
+              Point camera directly at the landmark
+            </h2>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              V3 removes the QR dependency by recognizing the landmark from the
+              camera view. The dashboard scanner includes the first simulated
+              camera-based flow.
+            </p>
+          </div>
 
           <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
             <p className="text-sm uppercase tracking-[0.25em] text-amber-100/80">
@@ -220,9 +247,9 @@ function LandmarkDetails() {
                     <button
                       type="button"
                       onClick={() => handleBookTickets(event)}
-                      className="mt-4 rounded-full bg-gradient-to-r from-amber-300 to-sky-300 px-5 py-3 text-sm font-bold text-slate-950"
+                      className="mt-4 rounded-lg bg-gradient-to-r from-amber-300 to-sky-300 px-5 py-3 text-sm font-bold text-slate-950"
                     >
-                      Book Ticket
+                      Book with Stripe
                     </button>
                   </div>
                 ))}
@@ -231,59 +258,34 @@ function LandmarkDetails() {
           </div>
 
           {selectedEvent ? (
-            <div className="mt-8 rounded-[1.5rem] border border-sky-300/20 bg-sky-300/10 p-5">
-              <p className="text-sm uppercase tracking-[0.25em] text-sky-100/80">Book Event Tickets</p>
-              <h3 className="mt-3 font-display text-2xl font-semibold text-white">
-                {selectedEvent.eventName}
-              </h3>
-              <p className="mt-2 text-sm text-slate-300">
-                Location: {landmark.name} • Entry Fee: ₹{selectedEvent.ticketPrice}
-              </p>
-              <label className="mt-4 block">
-                <span className="mb-2 block text-sm font-medium text-slate-200">
-                  Number of Tickets
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  value={ticketCount}
-                  onChange={(event) => setTicketCount(Number(event.target.value) || 1)}
-                  className="w-full max-w-xs rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-white outline-none"
-                />
-              </label>
-              <div className="mt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={confirmBooking}
-                  className="rounded-full bg-gradient-to-r from-sky-400 to-cyan-300 px-5 py-3 text-sm font-bold text-slate-950"
-                >
-                  Book Now
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedEvent(null)}
-                  className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold text-white"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {bookingMessage ? (
-            <div className="mt-6 rounded-[1.25rem] border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
-              {bookingMessage}
-            </div>
+            <BookingCheckout
+              landmark={landmark}
+              event={selectedEvent}
+              onCancel={() => setSelectedEvent(null)}
+            />
           ) : null}
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
+            <button
+              type="button"
+              onClick={handleCheckIn}
+              className="rounded-lg bg-gradient-to-r from-emerald-300 to-cyan-300 px-6 py-3 text-sm font-bold text-slate-950"
+            >
+              Check in here
+            </button>
             <Link
               to="/dashboard"
-              className="rounded-full border border-white/15 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+              className="rounded-lg border border-white/15 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               Back
             </Link>
           </div>
+
+          {checkInMessage ? (
+            <div className="mt-6 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
+              {checkInMessage}
+            </div>
+          ) : null}
 
           <FeedbackButtons value={feedback} onChange={handleFeedback} />
           {feedback ? (

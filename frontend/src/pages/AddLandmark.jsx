@@ -7,6 +7,7 @@ const initialState = {
   location: "",
   entryFee: "",
   bestTime: "",
+  type: "heritage",
   description: "",
   image: "",
   audioGuide: "",
@@ -34,6 +35,7 @@ function AddLandmark() {
         location: landmark.location,
         entryFee: landmark.entryFee,
         bestTime: landmark.bestTime,
+        type: landmark.type ?? "heritage",
         description: landmark.description.join("\n\n"),
         image: landmark.image,
         audioGuide: landmark.audioGuide,
@@ -66,6 +68,7 @@ function AddLandmark() {
       location: formData.location.trim(),
       entryFee: formData.entryFee.trim(),
       bestTime: formData.bestTime.trim(),
+      type: formData.type.trim(),
       description: formData.description.trim(),
       image: formData.image,
       audioGuide: formData.audioGuide,
@@ -160,6 +163,23 @@ function AddLandmark() {
                 />
               </label>
             </div>
+
+            <label>
+              <span className="mb-2 block text-sm font-medium text-slate-200">
+                Landmark Type
+              </span>
+              <select
+                value={formData.type}
+                onChange={(event) => updateField("type", event.target.value)}
+                className="w-full rounded-2xl border border-white/15 bg-slate-900 px-4 py-3 text-white outline-none"
+              >
+                <option value="heritage">Heritage</option>
+                <option value="fort">Fort</option>
+                <option value="museum">Museum</option>
+                <option value="temple">Temple</option>
+                <option value="nature">Nature</option>
+              </select>
+            </label>
 
             <label>
               <span className="mb-2 block text-sm font-medium text-slate-200">

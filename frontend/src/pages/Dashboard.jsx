@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 function Dashboard() {
   const { user } = useAuth();
 
-  if (user?.role === "content-manager") {
+  if (["content-manager", "admin"].includes(user?.role)) {
     return <Navigate to="/dashboard/content" replace />;
   }
 
